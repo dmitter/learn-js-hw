@@ -1,8 +1,10 @@
 import fetchJson from '../../../lib/fetchJson.js'
 import { FetchError } from '../../../lib/fetchJson.js'
 import createElement from "../../../lib/createElement.js";
+import Router from "../../../lib/router.js";
 import SortableList from '../../../components/sortableList/index.js';
-import { ErrorNotification } from '../../../components/notification/index.js';
+import { ErrorNotification, SuccessNotification } from '../../../components/notification/index.js';
+
 
 const IMGUR_CLIENT_ID = "28aaa2e823b03b1";
 
@@ -13,8 +15,8 @@ export default class EditProductPage {
       .replace(/^\/|\/$/, '')
       .replace(/\?.*$/, '')
       .replace(/#.*$/, '');
-    let id = strippedPath.split('/').slice(1);
-    let product = (await fetchJson(`https://course-js.javascript.ru/api/rest/products?id=${id}`))[0];
+    this.productId = strippedPath.split('/').slice(1)[0];
+    let product = (await fetchJson(`https://course-js.javascript.ru/api/rest/products?id=${this.productId}`))[0];
     this.elem = createElement(this._renderFormHTML);
     this.elems = {};
     for (let subElem of this.elem.querySelectorAll('[data-elem]')) {
@@ -33,7 +35,43 @@ export default class EditProductPage {
     form.discount.value = product.discount;
     form.quantity.value = product.quantity;
     form.status.value = product.status;
+    form.addEventListener('submit', (event) => this._onSubmit(event));
     return this.elem;
+  }
+
+  _onSubmit(event) {
+    event.preventDefault();
+    this._save();
+  }
+
+  async _save() {
+    let product = {
+      id: this.productId,
+      title: this.elems.productForm.title.value,
+      description: this.elems.productForm.title.value,
+      subcategory: this.elems.productForm.category.value,
+      price: +this.elems.productForm.price.value,
+      quantity: +this.elems.productForm.quantity.value,
+      discount: +this.elems.productForm.discount.value,
+      status: +this.elems.productForm.status.value,
+      images: []
+    };
+    let imageLiElems = this.elems.imageListContainer.querySelectorAll('li');
+    for (let liElem of imageLiElems) {
+      let url = liElem.querySelector('input[name="url"]').value;
+      let source = liElem.querySelector('input[name="source"]').value;
+      product.images.push({ url, source });
+    }
+    let result = await fetchJson("https://course-js.javascript.ru/api/rest/products", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(product)
+    });
+    this.productId ? new SuccessNotification("Product saved") : (Router.instance().navigate("/products/" + result.id));
+    document.addEventListener("route", function onRoute() {
+      new SuccessNotification("Product created");
+      document.removeEventListener("route", onRoute);
+    });
   }
 
   async _fetchCategories() {
@@ -60,10 +98,10 @@ export default class EditProductPage {
       this.elems.productForm.uploadImage.classList.add("is-loading");
       this.elems.productForm.uploadImage.disabled = true;
       try {
-        let response = await fetchJson("https://api.imgur.com/3/image",
-          {
-            method: "POST", headers: { Authorization: `Client-ID ${IMGUR_CLIENT_ID}` },
-            body: formData
+        let response = await fetchJson("https://api.imgur.com/3/image", {
+          method: "POST",
+          headers: { Authorization: `Client-ID ${IMGUR_CLIENT_ID}` },
+          body: formData
           });
         this.imageList.addItem({ url: response.data.link, source: file.name });
       } catch (ex) {
