@@ -37,8 +37,8 @@ export default class EditProductPage {
   }
 
   async _fetchCategories() {
-    let categories = await fetchJson(`http://course-js.javascript.ru/api/rest/categories`);
-    let subcategories = await fetchJson(`http://course-js.javascript.ru/api/rest/subcategories`);
+    let categories = await fetchJson(`https://course-js.javascript.ru/api/rest/categories`);
+    let subcategories = await fetchJson(`https://course-js.javascript.ru/api/rest/subcategories`);
     return subcategories.map((subCategory) => {
       let category = categories.find((c) => c.id == subCategory.category);
       let title = `${category.title} > ${subCategory.title}`;
